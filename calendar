@@ -96,6 +96,7 @@ if (!config.runsInWidget && !TEST_MODE) {
       }
   }
   
+  if (futureEvents.length != 0) {
 // Greeting label
 let hello = widget.addText('Tomorrow');
 hello.font = Font.regularSystemFont(12);
@@ -114,6 +115,7 @@ hello.rightAlignText();
     timeOne.font = Font.regularSystemFont(10)
     timeOne.textColor = Color.white()
     timeOne.rightAlignText()
+  }
   
 //       let files = FileManager.local()
 //       const path = files.joinPath(files.documentsDirectory(), "mz_calendar_widget.jpg")
