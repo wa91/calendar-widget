@@ -1,58 +1,183 @@
-// Variables used by Scriptable.
-// These must be at the very top of the file. Do not edit.
-// icon-color: red; icon-glyph: calendar-alt;
+
+
 
 // This widget was created by Max Zeryck @mzeryck
 
-// Note: before using this script in a widget, change const TEST_MODE to true and run it in the Scriptable app.
-// The app will prompt you to give calendar access, and then show a preview of the widget.
-// Make sure to change it back to const TEST_MODE = false prior to adding it to a widget. Happy coding!
+/*
+You can't add commit messages to gists, so I just want to say thanks to everyone who has used, modified, 
+and enjoyed this script. This version adds support for the iPhone 12 mini, thanks to arealhen for providing
+a screenshot, and mintakka for a temporary solution.
+*/
 
-const IMAGE_SOURCE = "Unsplash"
-const TERMS = "nature,forest"
+// Widgets are unique based on the name of the script.
+const filename = Script.name() + ".jpg"
+const files = FileManager.local()
+const path = files.joinPath(files.documentsDirectory(), filename)
+let Drawcontext = new DrawContext();
+if (config.runsInWidget) {
 
-const FORCE_IMAGE_UPDATE = false
-const TEST_MODE = false
+let widgeta = new ListWidget()
 
-// Store current datetime
-const date = new Date()
-
-// If we're running the script normally, go to the Calendar.
-if (!config.runsInWidget && !TEST_MODE) {
-  const appleDate = new Date('2001/01/01')
-  const timestamp = (date.getTime() - appleDate.getTime()) / 1000
-  const callback = new CallbackURL("calshow:"+timestamp)
-  callback.open()
-  Script.complete()
+widgeta.backgroundImage = files.readImage(path)
   
-// Otherwise, create the widget.  
-} else {
+  // You can your own code here to add additional items to the "invisible" background of the widget.
 
-  let widget = new ListWidget()
-  
-  // Format the date info
-  let df = new DateFormatter()
-  df.dateFormat = "EEEE"
-  let dayOfWeek = widget.addText(df.string(date).toUpperCase())
-  let dateNumber = widget.addText(date.getDate().toString())
-  dayOfWeek.font = Font.semiboldSystemFont(13)
-  dateNumber.font = Font.lightSystemFont(38)
-  
-  // Find future events that aren't all day and aren't canceled
-  
-  const tmr = await CalendarEvent.tomorrow([])
-  const events = await CalendarEvent.today([])
-  let futureEvents = []
-  for (const event of events) {
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: orange; icon-glyph: magic;
+
+/*=============================================================================
+ * CONSTANTS
+ ============================================================================*/
+
+Date.prototype.addHours = function (numHours) {
+  const date = new Date(this.valueOf());
+  date.setHours(date.getHours() + numHours);
+  return date;
+};
+
+Date.prototype.addMinutes = function (numMinutes) {
+  const date = new Date(this.valueOf());
+  date.setMinutes(date.getMinutes() + numMinutes);
+  return date;
+};
+
+/*=============================================================================
+ * WIDGET CONFIGURATIONS *** CONFIGURE ME!!! ***
+ ============================================================================*/
+
+// Example: 12 PM
+const HOUR_FORMAT = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+});
+
+// Example: Saturday
+const DAY_OF_WEEK_FORMAT = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+});
+
+// Example: 12
+const DAY_OF_MONTH_FORMAT = new Intl.DateTimeFormat('en-US', {
+  day: 'numeric',
+});
+
+
+/**
+ * Widget confugurations. Edit these to customize widget.
+ */
+const WIDGET_CONFIGURATIONS = {
+  // Number of hours to show in the agenda
+  numHours: 8,
+
+  // Whether or not to use a background image for the widget
+  useBackgroundImage: true,
+
+  // If no background, default grayish background color gradient
+//   backgroundColor: [new Color("#29323c"), new Color("#1c1c1c")],
+
+  // Font to use in Widget
+  font: 'Menlo',
+
+  // Bold Font to use in Widget
+  fontBold: 'Menlo-Bold',
+
+  // Default text size in Widget
+  defaultTextSize: 10,
+
+  // Larger text size in Widget
+  largeTextSize: 25,
+
+  // Default text color in Widget
+  defaultTextColor: Color.white(),
+
+  // Default spacing between elements
+  defaultSpacer: 10,
+
+  // Smaller spacing between elements
+  smallSpacer: 5,
+
+  // Height of Widget's Draw Context
+  widgetHeight: 400,
+
+  // Width of Widget's Draw Context
+  widgetWidth: 430,
+
+  // Default padding in Draw Context
+  padding: 10,
+
+  // Left padding of events in Draw Context
+  eventsLeftPadding: 70,
+
+  // Corner radius of events in Draw Context
+  eventsRounding: 10,
+
+  // Text color of event titles
+  eventsTextColor: Color.black(),
+
+  // Thickness of hour/now line
+  lineHeight: 4,
+
+  // Color of hour/mp line
+  lineColor: new Color('#ffffff', 0.3),
+};
+
+/*=============================================================================
+ * WIDGET SET UP
+ ============================================================================*/
+const widget = new ListWidget();
+
+
+widget.backgroundImage = files.readImage(path)
+// await setBackground(widget, WIDGET_CONFIGURATIONS);
+
+const events = await getEvents(WIDGET_CONFIGURATIONS);
+console.log(JSON.stringify(events));
+
+drawWidget(widget, events, WIDGET_CONFIGURATIONS);
+
+Script.setWidget(widget);
+widget.presentMedium();
+Script.complete();
+
+/*=============================================================================
+ * DRAW WIDGET
+ ============================================================================*/
+
+function drawWidget(widget, events, WIDGET_CONFIGURATIONS) {
+  const mainStack = widget.addStack();
+  mainStack.layoutHorizontally();
+  mainStack.spacing = 20;
+
+  // Left stack contains date, and all day events
+  const leftStack = mainStack.addStack();
+  leftStack.layoutVertically();
+
+  // Right stack contains calendar events
+  const rightStack = mainStack.addStack();
+  rightStack.layoutVertically();
+
+var futureEvents = [];
+
+let date= new Date();
+  for (const event of todayEvents) {
       if (event.startDate.getTime() > date.getTime() && !event.isAllDay && !event.title.startsWith("Canceled:")) {
           futureEvents.push(event)  
       }
-  }
-  
-  // If there is at least one future event today
-  if (futureEvents.length != 0) {
+}
 
-    dayOfWeek.textColor = Color.white()
+  drawLeftStack(leftStack, events, WIDGET_CONFIGURATIONS);
+
+const evStack = leftStack.addStack();
+      evStack.layoutHorizontally();
+   const evt = evStack.addText('Events left:  ');
+    evt.textColor = Color.white();
+    evt.font = Font.regularSystemFont(10);
+
+const evl = evStack.addText(String(futureEvents.length));
+    evl.textColor = Color.white();
+    evl.font = Font.boldSystemFont(10);
+
+ if (futureEvents.length ==1) {
     widget.addSpacer()
     
     let titleOne = widget.addText(futureEvents[0].title) 
@@ -63,133 +188,243 @@ if (!config.runsInWidget && !TEST_MODE) {
     let timeOne = widget.addText(formatTime(futureEvents[0].startDate))
     timeOne.font = Font.regularSystemFont(10)
     timeOne.textColor = Color.white()
-   
-    // If we have multiple future events, show the following one
-    if (futureEvents.length > 1) {
-      
-        // We only have room for single-line event names
-        titleOne.lineLimit = 1
-        
-        widget.addSpacer(12)
-        
-        let titleTwo = widget.addText(futureEvents[1].title) 
-        titleTwo.font = Font.mediumSystemFont(14)
-        titleTwo.lineLimit = 1
-        
-        widget.addSpacer(7)
-        
-        let timeTwo = widget.addText(formatTime(futureEvents[1].startDate))
-        timeTwo.font = Font.regularSystemFont(10)
-        timeTwo.textColor = Color.white()
-    }
-      
-  // If there are no future events today
-  } else {
-      dayOfWeek.textColor = Color.white()
-      dateNumber.textColor = Color.white()
-      
-      widget.addSpacer()
-      
-       for (const event of tmr) {
+
+  } else if (futureEvents.length >1){
+drawRightStack(rightStack, events, WIDGET_CONFIGURATIONS);
+   } else {
+  
+  for (const event of tomorrowEvents) {
       if (!event.isAllDay && !event.title.startsWith("Canceled:")) {
           futureEvents.push(event)  
       }
   }
   
-  if (futureEvents.length != 0) {
-// Greeting label
-let hello = widget.addText('Tomorrow');
+   if (futureEvents.length >0) {
+  
+  let hello = widget.addText('Tomorrow');
 hello.font = Font.regularSystemFont(12);
 hello.textColor = Color.gray();
 hello.rightAlignText();
  widget.addSpacer()
   
-  let titleOne = widget.addText(futureEvents[0].title) 
+  let titleOne = widget.addText(tomorrowEvents[0].title) 
     titleOne.font = Font.mediumSystemFont(14)
     titleOne.textColor = Color.white()
     titleOne.rightAlignText()
     
     widget.addSpacer(7)
     
-    let timeOne = widget.addText(formatTime(futureEvents[0].startDate))
+    let timeOne = widget.addText(formatTime(tomorrowEvents[0].startDate))
     timeOne.font = Font.regularSystemFont(10)
     timeOne.textColor = Color.white()
     timeOne.rightAlignText()
-  }
-  
-//       let files = FileManager.local()
-//       const path = files.joinPath(files.documentsDirectory(), "mz_calendar_widget.jpg")
-//       const modificationDate = files.modificationDate(path) 
-//       
-      // Download image if it doesn't exist, wasn't created today, or update is forced
-//       if (!modificationDate || !sameDay(modificationDate,date) || FORCE_IMAGE_UPDATE) {
-//          try {
-//             let img = await provideImage(IMAGE_SOURCE,TERMS)
-//             files.writeImage(path,img)
-//             widget.backgroundImage = img
-//          } catch { 
-//             widget.backgroundImage = files.readImage(path)
-//          }
-//       } else {
-//          widget.backgroundImage = files.readImage(path)  
-//       }
-      widget.addSpacer() 
+}
+}
+}
+function drawLeftStack(stack, events, {
+  font,
+  fontBold,
+  defaultTextSize,
+  largeTextSize,
+  defaultTextColor,
+  defaultSpacer,
+  smallSpacer,
+}) {
+  const currentDate = new Date();
+
+  const dateStack = stack.addStack();
+  dateStack.layoutHorizontally();
+
+  const dowText = dateStack.addText(DAY_OF_WEEK_FORMAT.format(currentDate));
+  dowText.textColor = defaultTextColor;
+  dowText.font = Font.regularSystemFont(largeTextSize);
+
+  dateStack.addSpacer(defaultSpacer);
+
+  const domText = dateStack.addText(DAY_OF_MONTH_FORMAT.format(currentDate));
+  domText.textColor = defaultTextColor;
+  domText.font = Font.boldSystemFont(largeTextSize);
+
+  stack.addSpacer(defaultSpacer);
+
+  const allDayEvents = events['all-day'];
+
+  if (allDayEvents) {
+    const allDayEventsText = stack.addText('All day events');
+    allDayEventsText.textColor = defaultTextColor;
+    allDayEventsText.font = new Font(fontBold, defaultTextSize);
+
+    stack.addSpacer(smallSpacer);
+
+    for (let event of allDayEvents) {
+      const eventStack = stack.addStack();
+      eventStack.layoutHorizontally();
+
+      const calendarIconText = eventStack.addText("\u2759");
+      calendarIconText.textColor = new Color(event.color);
+      calendarIconText.font = new Font(font, defaultTextSize);
+
+      eventStack.addSpacer(smallSpacer);
+
+      const calendarEventText = eventStack.addText(event.title);
+      calendarEventText.textColor = defaultTextColor;
+      calendarEventText.font = new Font(font, defaultTextSize);
+
+      stack.addSpacer(smallSpacer);
     }
-      widget.backgroundImage = Image.fromFile('/var/mobile/Library/Mobile Documents/iCloud~dk~simonbs~Scriptable/Documents/C.JPG');
-      
-      // Add overlay to image
-//       let gradient = new LinearGradient()
-//       gradient.colors = [new Color("#00000030"), new Color("#000000",0)]
-//       gradient.locations = [0.5, 0]
-//       widget.backgroundGradient = gradient
-// 
-  
-  
-  // Finalize widget settings
-  widget.setPadding(16,16,16,0)
-  widget.spacing = -3
-  
-  Script.setWidget(widget)
-  widget.presentSmall()
-  Script.complete() 
+  } else {
+//     const noAllDayEventsText = dateStack.addText('No all-day events');
+//     noAllDayEventsText.textColor = defaultTextColor;
+//     noAllDayEventsText.font = new Font(fontBold, // defaultTextSize);
+  }
+
 }
 
-// Helper function to interpret sources and terms
-// async function provideImage(source,terms) {
-//     
-//     if (source == "Bing") {
-//         const url = "http://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US"
-//         const req = new Request(url)
-//         const json = await req.loadJSON()
-//         const imgURL = "http://bing.com" + json.images[0].url
-//         const img = await downloadImage(imgURL)
-//         const rect = new Rect(-78,0,356,200)
-//         return cropImage(img, rect)
-//         
-//     } else if (source == "Unsplash") {
-//         const img = await downloadImage("https://source.unsplash.com/featured/500x500/?"+terms)
-//         return img
-//     } 
+function drawRightStack(stack, events, {
+  defaultTextColor,
+  font,
+  largeTextSize,
+  eventsTextColor,
+  numHours,
+  widgetHeight,
+  widgetWidth,
+  padding,
+  eventsLeftPadding,
+  eventsRounding,
+  lineHeight,
+  lineColor,
+}) {
+  const halfHourEventHeight = widgetHeight / (numHours * 2);
+
+  const draw = new DrawContext();
+draw.opaque = false;
+  draw.respectScreenScale = true;
+  draw.size = new Size(widgetWidth, widgetHeight);
+
+  const currentDate = new Date();
+
+  // Loop through all the hours and draw the lines
+  for (let i = 0; i < numHours; i++) {
+
+    const currentHourDate = currentDate.addHours(i);
+    const currentHourText = HOUR_FORMAT.format(currentHourDate);
+
+    const topPointY = halfHourEventHeight * 2 * i;
+    const midPointY = topPointY + halfHourEventHeight;
+
+    // Draw line at the hour
+    const topPath = new Path();
+    topPath.addRect(new Rect(eventsLeftPadding - padding, topPointY, widgetWidth, lineHeight));
+    draw.addPath(topPath);
+    draw.setFillColor(lineColor);
+    draw.fillPath();
+
+    // Draw line at the half hour
+    const middlePath = new Path();
+    middlePath.addRect(new Rect(eventsLeftPadding - padding, midPointY, widgetWidth, lineHeight / 2));
+    draw.addPath(middlePath);
+    draw.setFillColor(lineColor);
+    draw.fillPath();
+
+    // Draw hour text
+    draw.setTextColor(defaultTextColor);
+    draw.setFont(new Font(font, largeTextSize));
+    draw.drawText(`${currentHourText}`.toLowerCase(), new Point(0, topPointY));
+  }
+
+  // Loop through all the hours and draw the events (on top of the lines)
+  for (let i = 0; i < numHours; i++) {
+
+    const currentHourDate = currentDate.addHours(i);
+    const currentHourText = HOUR_FORMAT.format(currentHourDate);
+
+    const topPointY = halfHourEventHeight * 2 * i;
+    const midPointY = topPointY + halfHourEventHeight;
+
+    // Draw events for this hour (if any)
+    const hourEvents = events[currentHourText];
+    if (hourEvents) {
+      for (let j = 0; j < hourEvents.length; j++) {
+        // TODO - determine width of events based on num events in hour
+        const { startMinute, title, color, duration } = hourEvents[j];
+
+        // Determine top Y of event
+        const eventRectY = topPointY + Math.floor((startMinute * halfHourEventHeight) / 30);
+
+        // Determine height of events
+        const eventHeight = Math.floor((duration * halfHourEventHeight) / 30);
+
+        const eventRect = new Rect(
+          eventsLeftPadding + padding,
+          eventRectY,
+          widgetWidth - (eventsLeftPadding + padding * 3),
+          eventHeight
+        );
+        const eventPath = new Path();
+        eventPath.addRoundedRect(eventRect, eventsRounding, eventsRounding);
+
+        draw.addPath(eventPath);
+        draw.setFillColor(new Color("#a6a6a6",0.3));
+        draw.fillPath();
+
+        // Draw event name text
+        draw.setTextColor(new Color("#f2f2f2"));
+        draw.setFont(new Font(font, largeTextSize +2));
+        draw.drawText(`${title}`, new Point(eventsLeftPadding + padding + padding, eventRectY + padding / 2));
+      }
+    }
+  }
+
+  // Draw line at the current time
+  const currentMinute = new Date().getMinutes();
+  let currentMinuteY = (currentMinute * halfHourEventHeight) / 30;
+  const currentMinutePath = new Path();
+  currentMinutePath.addRect(new Rect(eventsLeftPadding, currentMinuteY, widgetWidth, lineHeight));
+  draw.addPath(currentMinutePath);
+  draw.setFillColor(Color.red());
+  draw.fillPath();
+
+  // Put the content on the widget stack
+  const drawn = draw.getImage();
+  stack.addImage(drawn);
+}
+
+/*=============================================================================
+ * FUNCTIONS
+ ============================================================================*/
+
+// async function setBackground(widget, { useBackgroundImage, backgroundColor }) {
+//   if (useBackgroundImage) {
+    // Determine if our image exists and when it was saved.
+//     const files = FileManager.local();
+//     const path = files.joinPath(files.documentsDirectory(), 'calendar-events-widget-background');
+//     const exists = files.fileExists(path);
 // 
-// }
+    // If it exists and we're running in the widget, use photo from cache
+//     if (exists && config.runsInWidget) {
+//       widget.backgroundImage = files.readImage(path);
 // 
-// Helper function to download images
-// async function downloadImage(url) {
-//    const req = new Request(url)
-//    return await req.loadImage() 
-// }
+      // If it's missing when running in the widget, fallback to backgroundColor
+//     } else if (!exists && config.runsInWidget) {
+//       const bgColor = new LinearGradient();
+//       bgColor.colors = backgroundColor;
+//       bgColor.locations = [0.0, 1.0];
+//       widget.backgroundGradient = bgColor;
 // 
-// Crop an image into a rect
-// function cropImage(img,rect) {
-//    
-//     let draw = new DrawContext()
-//     draw.respectScreenScale = true
-//     
-//     draw.drawImageInRect(img,rect)  
-//     return draw.getImage()
+      // But if we're running in app, prompt the user for the image.
+//     } else if (config.runsInApp) {
+//       const img = await Photos.fromLibrary();
+//       widget.backgroundImage = img;
+//       files.writeImage(path, img);
+//     }
+//   } else {
+//     const bgColor = new LinearGradient();
+//     bgColor.colors = backgroundColor;
+//     bgColor.locations = [0.0, 1.0];
+//     widget.backgroundGradient = bgColor;
+//   }
 // }
 
-// Formats the times under each event
 function formatTime(date) {
     let df = new DateFormatter()
     df.useNoDateStyle()
@@ -197,9 +432,357 @@ function formatTime(date) {
     return df.string(date)
 }
 
-// Determines if two dates occur on the same day
-function sameDay(d1, d2) {
-  return d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate()
+var todayEvents,tomorrowEvents;
+async function getEvents({ numHours }) {
+   todayEvents = await CalendarEvent.today([]);
+   tomorrowEvents = await CalendarEvent.tomorrow([]);
+  const combinedEvents = todayEvents.concat(tomorrowEvents);
+
+  let now = new Date();
+  now = now.addMinutes(now.getMinutes() * -1);
+  const inNumHours = now.addHours(numHours);
+
+  const eventsByHour = {};
+
+  combinedEvents.forEach((event) => {
+    const start = new Date(event.startDate);
+    const end = new Date(event.endDate);
+
+    // Filter out events that start between now and numHours from now
+    if (start <= inNumHours) {
+      if (event.isAllDay) {
+        if (!eventsByHour['all-day']) {
+          eventsByHour['all-day'] = [];
+        }
+        eventsByHour['all-day'].push({
+          title: event.title,
+          color: `#${event.calendar.color.hex}`,
+        });
+      } else if (start < now && end > now) {
+        const hourKey = HOUR_FORMAT.format(now);
+
+        if (!eventsByHour[hourKey]) {
+          eventsByHour[hourKey] = [];
+        }
+
+        let eventDuration = Math.floor(((end - start) / 1000) / 60) - (Math.floor(((now - start) / 1000) / 60));
+
+        const eventObj = {
+          start,
+          end,
+          startMinute: start.getMinutes(),
+          title: event.title,
+          color: `#${event.calendar.color.hex}`,
+          duration: eventDuration,
+        };
+
+        eventsByHour[hourKey].push(eventObj);
+      } else {
+        const hourKey = HOUR_FORMAT.format(start);
+
+        if (!eventsByHour[hourKey]) {
+          eventsByHour[hourKey] = [];
+        }
+
+        let eventDuration = Math.floor(((end - start) / 1000) / 60);
+
+        const eventObj = {
+          start,
+          end,
+          startMinute: start.getMinutes(),
+          title: event.title,
+          color: `#${event.calendar.color.hex}`,
+          duration: eventDuration,
+        };
+
+        eventsByHour[hourKey].push(eventObj);
+      }
+    }
+  });
+
+  return eventsByHour;
+}
+/*
+ * The code below this comment is used to set up the invisible widget.
+ * ===================================================================
+ 
+} else {
+
+  const date = new Date()
+  const appleDate = new Date('2001/01/01')
+  const timestamp = (date.getTime() - appleDate.getTime()) / 1000
+  const callback = new CallbackURL("calshow:"+timestamp)
+  callback.open()
+  Script.complete()
+} 
+*/
+
+// termine if user has taken the screenshot.
+
+var message
+  message = "Before you start, go to your home screen and enter wiggle mode. Scroll to the empty page on the far right and take a screenshot."
+  let exitOptions = ["Continue","Exit to Take Screenshot"]
+  let shouldExit = await generateAlert(message,exitOptions)
+  if (shouldExit) return
+  
+  // Get screenshot and determine phone size.
+  let img = await Photos.fromLibrary()
+  let height = img.size.height
+  let phone = phoneSizes()[height]
+  if (!phone) {
+    message = "It looks like you selected an image that isn't an iPhone screenshot, or your iPhone is not supported. Try again with a different image."
+    await generateAlert(message,["OK"])
+    return
+  }
+  
+  // Extra setup needed for 2436-sized phones.
+  if (height == 2436) {
+  
+    let cacheName = "mz-phone-type"
+    let cachePath = files.joinPath(files.libraryDirectory(), cacheName)
+  
+    // If we already cached the phone size, load it.
+    if (files.fileExists(cachePath)) {
+      let typeString = files.readString(cachePath)
+      phone = phone[typeString]
+    
+    // Otherwise, prompt the user.
+    } else { 
+      message = "What type of iPhone do you have?"
+      let types = ["iPhone 12 mini", "iPhone 11 Pro, XS, or X"]
+      let typeIndex = await generateAlert(message, types)
+      let type = (typeIndex == 0) ? "mini" : "x"
+      phone = phone[type]
+      files.writeString(cachePath, type)
+    }
+  }
+  
+  // Prompt for widget size and position.
+  message = "What size of widget are you creating?"
+  let sizes = ["Small","Medium","Large"]
+  let size = await generateAlert(message,sizes)
+  let widgetSize = sizes[size]
+  
+  message = "What position will it be in?"
+  message += (height == 1136 ? " (Note that your device only supports two rows of widgets, so the middle and bottom options are the same.)" : "")
+  
+  // Determine image crop based on phone size.
+  let crop = { w: "", h: "", x: "", y: "" }
+  if (widgetSize == "Small") {
+    crop.w = phone.small
+    crop.h = phone.small
+    let positions = ["Top left","Top right","Middle left","Middle right","Bottom left","Bottom right"]
+    let position = await generateAlert(message,positions)
+    
+    // Convert the two words into two keys for the phone size dictionary.
+    let keys = positions[position].toLowerCase().split(' ')
+    crop.y = phone[keys[0]]
+    crop.x = phone[keys[1]]
+    
+  } else if (widgetSize == "Medium") {
+    crop.w = phone.medium
+    crop.h = phone.small
+    
+    // Medium and large widgets have a fixed x-value.
+    crop.x = phone.left
+    let positions = ["Top","Middle","Bottom"]
+    let position = await generateAlert(message,positions)
+    let key = positions[position].toLowerCase()
+    crop.y = phone[key]
+    
+  } else if(widgetSize == "Large") {
+    crop.w = phone.medium
+    crop.h = phone.large
+    crop.x = phone.left
+    let positions = ["Top","Bottom"]
+    let position = await generateAlert(message,positions)
+    
+    // Large widgets at the bottom have the "middle" y-value.
+    crop.y = position ? phone.middle : phone.top
+  }
+  
+  // Crop image and finalize the widget.
+  let imgCrop = cropImage(img, new Rect(crop.x,crop.y,crop.w,crop.h))
+  
+  message = "Your widget background is ready. Would you like to use it as this script's background, or export the image for use in a different script or another widget app?"
+  const exportPhotoOptions = ["Use for this script","Export to Photos","Export to Files"]
+  const exportPhoto = await generateAlert(message,exportPhotoOptions)
+  
+  if (exportPhoto == 0) {
+    files.writeImage(path,imgCrop)
+  } else if (exportPhoto == 1) {
+    Photos.save(imgCrop)
+  } else if (exportPhoto == 2) {
+    await DocumentPicker.exportImage(imgCrop)
+  }
+  
+  Script.complete()
+}
+
+// Generate an alert with the provided array of options.
+async function generateAlert(message,options) {
+  
+  let alert = new Alert()
+  alert.message = message
+  
+  for (const option of options) {
+    alert.addAction(option)
+  }
+  
+  let response = await alert.presentAlert()
+  return response
+}
+
+// Crop an image into the specified rect.
+function cropImage(img,rect) {
+   
+let draw = new DrawContext()
+  draw.size = new Size(rect.width, rect.height)
+  
+  draw.drawImageAtPoint(img,new Point(-rect.x, -rect.y))  
+  return draw.getImage()
+}
+
+// Pixel sizes and positions for widgets on all supported phones.
+function phoneSizes() {
+  let phones = {  
+    
+    // 12 Pro Max
+    "2778": {
+      small:  510,
+      medium: 1092,
+      large:  1146,
+      left:  96,
+      right: 678,
+      top:    246,
+      middle: 882,
+      bottom: 1518
+    },
+  
+    // 12 and 12 Pro
+    "2532": {
+      small:  474,
+      medium: 1014,
+      large:  1062,
+      left:  78,
+      right: 618,
+      top:    231,
+      middle: 819,
+      bottom: 1407
+    },
+  
+    // 11 Pro Max, XS Max
+    "2688": {
+      small:  507,
+      medium: 1080,
+      large:  1137,
+      left:  81,
+      right: 654,
+      top:    228,
+      middle: 858,
+      bottom: 1488
+    },
+  
+    // 11, XR
+    "1792": {
+      small:  338,
+      medium: 720,
+      large:  758,
+      left:  54,
+      right: 436,
+      top:    160,
+      middle: 580,
+      bottom: 1000
+    },
+    
+    
+    // 11 Pro, XS, X, 12 mini
+    "2436": {
+     
+      x: {
+        small:  465,
+        medium: 987,
+        large:  1035,
+        left:  69,
+        right: 591,
+        top:    213,
+        middle: 783,
+        bottom: 1353,
+      },
+      
+      mini: {
+        small:  465,
+        medium: 987,
+        large:  1035,
+        left:  69,
+        right: 591,
+        top:    231,
+        middle: 801,
+        bottom: 1371,
+      }
+      
+    },
+  
+    // Plus phones
+    "2208": {
+      small:  471,
+      medium: 1044,
+      large:  1071,
+      left:  99,
+      right: 672,
+      top:    114,
+      middle: 696,
+      bottom: 1278
+    },
+    
+    // SE2 and 6/6S/7/8
+    "1334": {
+      small:  296,
+      medium: 642,
+      large:  648,
+      left:  54,
+      right: 400,
+      top:    60,
+      middle: 412,
+      bottom: 764
+    },
+    
+    
+    // SE1
+    "1136": {
+      small:  282,
+      medium: 584,
+      large:  622,
+      left: 30,
+      right: 332,
+      top:  59,
+      middle: 399,
+      bottom: 399
+    },
+    
+    // 11 and XR in Display Zoom mode
+    "1624": {
+      small: 310,
+      medium: 658,
+      large: 690,
+      left: 46,
+      right: 394,
+      top: 142,
+      middle: 522,
+      bottom: 902 
+    },
+    
+    // Plus in Display Zoom mode
+    "2001" : {
+      small: 444,
+      medium: 963,
+      large: 972,
+      left: 81,
+      right: 600,
+      top: 90,
+      middle: 618,
+      bottom: 1146
+    },
+  }
+  return phones
 }
